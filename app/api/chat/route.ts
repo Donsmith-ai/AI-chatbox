@@ -5,6 +5,11 @@ import {
   parseModelFallbackList,
 } from "@/lib/gemini-generate-reliable";
 import {
+  logChatAssistantReply,
+  logChatError,
+  logChatRequest,
+} from "@/lib/chat-server-log";
+import {
   buildRagContents,
   getKnowledgeFileRef,
   RAG_SYSTEM_INSTRUCTION,
@@ -19,10 +24,7 @@ export async function POST(request: Request) {
     process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      {
-        error:
-          "Missing GEMINI_API_KEY (or GOOGLE_GENERATIVE_AI_API_KEY) environment variable.",
-      },
+      { error: "Something went wrong. Please try again later." },
       { status: 500 },
     );
   }
@@ -62,13 +64,20 @@ export async function POST(request: Request) {
         }))
       : buildRagContents(messages, await getKnowledgeFileRef(apiKey));
 
+    logChatRequest(messages, {
+      ragEnabled: !ragDisabled,
+      modelCandidates,
+    });
+
     // Retries 503/429 (capacity) and falls back to other models if needed.
-    const result = await generateContentReliable(
+    const { result, modelName: modelUsed } = await generateContentReliable(
       modelCandidates,
       getModel,
       { contents },
     );
     const text = result.response.text();
+
+    logChatAssistantReply(text, { modelUsed });
 
     return new Response(text, {
       headers: {
@@ -82,6 +91,10 @@ export async function POST(request: Request) {
       error instanceof Error
         ? error.message
         : "Unable to generate chat response.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logChatError(message);
+    return NextResponse.json(
+      { error: "Something went wrong. Please try again later." },
+      { status: 500 },
+    );
   }
 }

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Chatbox",
-  description: "Serverless Next.js chatbot with Gemini streaming responses.",
+  title: "LUPIN CHAT BOX",
+  description: "Chat with LUPIN CHAT BOX.",
 };
 
 export default function RootLayout({

@@ -20,6 +20,30 @@ function isModelNotFound(error: unknown): boolean {
   );
 }
 
+function chatLogEnabled() {
+  return (
+    process.env.CHAT_SERVER_LOG !== "false" &&
+    process.env.CHAT_SERVER_LOG !== "0"
+  );
+}
+
+function logRetry(modelName: string, attempt: number, error: unknown) {
+  if (!chatLogEnabled()) {
+    return;
+  }
+  const msg = error instanceof Error ? error.message : String(error);
+  console.log(
+    `[chatbox] retry · model=${modelName} · attempt=${attempt + 1} · ${msg.slice(0, 240)}`,
+  );
+}
+
+function logSkipModel(modelName: string, reason: string) {
+  if (!chatLogEnabled()) {
+    return;
+  }
+  console.log(`[chatbox] skip model=${modelName} · ${reason}`);
+}
+
 function isTransientCapacityError(error: unknown): boolean {
   if (error instanceof GoogleGenerativeAIFetchError) {
     const status = error.status;
@@ -43,7 +67,10 @@ export async function generateContentReliable(
   models: string[],
   getModel: (modelName: string) => GenerativeModel,
   request: Parameters<GenerativeModel["generateContent"]>[0],
-): Promise<Awaited<ReturnType<GenerativeModel["generateContent"]>>> {
+): Promise<{
+  result: Awaited<ReturnType<GenerativeModel["generateContent"]>>;
+  modelName: string;
+}> {
   const delaysMs = [700, 1800, 4000];
   let lastError: unknown;
 
@@ -52,19 +79,26 @@ export async function generateContentReliable(
 
     for (let attempt = 0; attempt < delaysMs.length; attempt++) {
       try {
-        return await model.generateContent(request);
+        const result = await model.generateContent(request);
+        if (chatLogEnabled()) {
+          console.log(`[chatbox] success · model=${modelName}`);
+        }
+        return { result, modelName };
       } catch (error) {
         lastError = error;
 
         if (isModelNotFound(error)) {
+          logSkipModel(modelName, "model not available (404)");
           break;
         }
 
         if (isTransientCapacityError(error)) {
+          logRetry(modelName, attempt, error);
           if (attempt < delaysMs.length - 1) {
             await sleep(delaysMs[attempt] ?? 4000);
             continue;
           }
+          logSkipModel(modelName, "capacity errors after retries");
           break;
         }
 

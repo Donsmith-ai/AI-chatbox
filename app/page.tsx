@@ -3,14 +3,14 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ThinkingRaceCar } from "@/components/ThinkingRaceCar";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
-const INITIAL_ASSISTANT_MESSAGE =
-  "Hi! I answer only from your uploaded knowledge PDF (RAG). Ask something about that document.";
+const INITIAL_ASSISTANT_MESSAGE = "Hi! What would you like to know?";
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
@@ -45,23 +45,11 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        const contentType = response.headers.get("content-type") ?? "";
-        let detail = `Request failed with status ${response.status}`;
-        if (contentType.includes("application/json")) {
-          try {
-            const data = (await response.json()) as { error?: string };
-            if (typeof data.error === "string" && data.error.length > 0) {
-              detail = data.error;
-            }
-          } catch {
-            /* keep generic detail */
-          }
-        }
-        throw new Error(detail);
+        throw new Error("request failed");
       }
 
       if (!response.body) {
-        throw new Error("No response body from chat API.");
+        throw new Error("no body");
       }
 
       const reader = response.body.getReader();
@@ -84,16 +72,12 @@ export default function Home() {
           return updated;
         });
       }
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : "Sorry, something went wrong while streaming.";
+    } catch {
       setMessages((current) => {
         const updated = [...current];
         updated[updated.length - 1] = {
           role: "assistant",
-          content: message,
+          content: "Something went wrong. Please try again.",
         };
         return updated;
       });
@@ -104,11 +88,8 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-4xl flex-col bg-white p-4 text-zinc-900 sm:p-6">
-      <header className="mb-4 border-b border-zinc-200 pb-3">
-        <h1 className="text-xl font-semibold">AI Chatbox</h1>
-        <p className="text-sm text-zinc-500">
-          Next.js + Gemini · answers grounded in your PDF knowledge file
-        </p>
+      <header className="mb-4 rounded-xl border border-blue-200/80 bg-blue-100 px-4 py-4">
+        <h1 className="text-xl font-semibold text-blue-950">LUPIN CHAT BOX</h1>
       </header>
 
       <main className="flex-1 space-y-4 overflow-y-auto pb-4">
@@ -123,9 +104,13 @@ export default function Home() {
           >
             {message.role === "assistant" ? (
               <article className="prose prose-sm max-w-none prose-p:my-2 prose-pre:my-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {message.content || (isLoading ? "..." : "")}
-                </ReactMarkdown>
+                {message.content === "" && isLoading ? (
+                  <ThinkingRaceCar />
+                ) : (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
+                )}
               </article>
             ) : (
               message.content
@@ -140,7 +125,7 @@ export default function Home() {
           value={input}
           onChange={(event) => setInput(event.target.value)}
           placeholder="Type your message..."
-          className="flex-1 rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+          className="flex-1 rounded-xl border border-blue-500/50 bg-blue-600 px-4 py-3 text-sm text-white outline-none transition placeholder:text-blue-100/75 focus:border-blue-300 focus:ring-2 focus:ring-blue-300/35 disabled:cursor-not-allowed disabled:bg-blue-600/55 disabled:text-white/85"
           disabled={isLoading}
         />
         <button

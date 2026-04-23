@@ -8,11 +8,9 @@ export type ChatTurn = { role: "user" | "assistant"; content: string };
 export type KnowledgeFileRef = { uri: string; mimeType: string };
 
 export const RAG_SYSTEM_INSTRUCTION =
-  "You are a knowledge assistant. A PDF knowledge document is attached in the first user message of this conversation. " +
-  "Answer ONLY using information from that document. " +
-  "If the document does not contain enough information to answer, reply exactly with: " +
-  "I don't have that information in the provided document. " +
-  "Do not use outside knowledge, the web, or guesses. Keep answers concise.";
+  "You are a helpful assistant. Use only information that appears in this chat. " +
+  "Do not use outside knowledge or the web. Keep answers concise. " +
+  "If you cannot answer from this chat alone, reply exactly with: I don't have that information.";
 
 let cachedUploadPromise: Promise<KnowledgeFileRef> | null = null;
 

@@ -56,5 +56,5 @@ export function logChatError(message: string) {
 
   banner("Error");
   console.error(message);
-  console.log(`\n${SEP}\n`);
+  console.error(`${SEP}\n`);
 }
